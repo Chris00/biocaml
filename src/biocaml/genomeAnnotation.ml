@@ -1,3 +1,5 @@
+open Batteries
+
 type 'a location = 'a * Range.t
 
 module type Domain = sig
@@ -13,6 +15,52 @@ module type Domain = sig
   val intersection_size : 'a location -> 'a t -> int
 
   val enum : 'a t -> 'a location Enum.t
+end
+
+
+module ISetDomain = struct
+  type 'a t = ('a, ISet.t) PMap.t
+
+  let of_locations e = 
+    let accu = Accu.create ISet.empty fst (fun (_,r) -> Range.(ISet.add_range r.lo r.hi)) in
+    Enum.iter (fun loc -> Accu.add accu loc loc ) e ;
+    PMap.of_enum (Accu.enum accu)
+
+  let inter u v =
+    PMap.foldi
+      (fun k set_u accu ->
+	 try 
+	   let set_v = PMap.find k v in
+	   PMap.add k (ISet.inter set_u set_v) accu
+	 with Not_found -> accu)
+      u PMap.empty
+
+  let diff u v =
+    PMap.foldi
+      (fun k set_u accu ->
+	 let set_u' = 
+	   try 
+	     let set_v = PMap.find k v in
+	     ISet.diff set_u set_v
+	   with Not_found -> set_u
+	 in PMap.add k set_u' accu)
+      u PMap.empty
+
+  let size x = 
+    PMap.foldi (fun _ set accu -> ISet.cardinal set + accu) x 0
+
+  let intersects (k,r) u = assert false
+
+  let intersection_size (k,r) dom = ISet.(
+    try 
+      inter
+	Range.(add_range r.lo r.hi empty)
+	(PMap.find k dom)
+      |> cardinal
+    with Not_found -> 0
+  )
+
+  let enum dom = assert false
 end
 
 

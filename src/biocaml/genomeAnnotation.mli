@@ -1,3 +1,4 @@
+open Batteries
 type 'a location = 'a * Range.t
 
 (** Indicator function on a genome *)
@@ -19,6 +20,7 @@ module type Domain = sig
   val enum : 'a t -> 'a location Enum.t
 end
 
+module ISetDomain : Domain
 
 (** Partial function over the genome: each base may be associated to a value. *)
 module type Signal = sig
