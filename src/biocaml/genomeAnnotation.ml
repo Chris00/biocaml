@@ -17,6 +17,15 @@ module type Domain = sig
   val enum : 'a t -> 'a location Enum.t
 end
 
+let rec iset_intersects_range i j s = ISet.(BatAvlTree.(
+  if i > j then raise (Invalid_argument "iset_intersects_range") ;
+  if is_empty s then false
+  else
+    let v1, v2 = root s in 
+    if j < v1 then iset_intersects_range i j (left_branch s)
+    else if v2 < i then iset_intersects_range i j (right_branch s)
+    else true
+))
 
 module ISetDomain = struct
   type 'a t = ('a, ISet.t) PMap.t
@@ -49,8 +58,6 @@ module ISetDomain = struct
   let size x = 
     PMap.foldi (fun _ set accu -> ISet.cardinal set + accu) x 0
 
-  let intersects (k,r) u = assert false
-
   let intersection_size (k,r) dom = ISet.(
     try 
       inter
@@ -60,7 +67,13 @@ module ISetDomain = struct
     with Not_found -> 0
   )
 
-  let enum dom = assert false
+  let intersects (k,r) dom = 
+    try Range.(iset_intersects_range r.lo r.hi (PMap.find k dom))
+    with Not_found -> false
+    
+  let enum dom = 
+    (PMap.enum dom) /@ (fun (k,s) -> Enum.map (fun (lo,hi) -> k, Range.make lo hi) (ISet.enum s))
+    |> Enum.concat
 end
 
 
