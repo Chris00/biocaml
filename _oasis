@@ -23,6 +23,7 @@ Library biocaml
            , Biocaml_pos
            , Biocaml_std
            , Biocaml_about
+           , Biocaml_accu
            , Biocaml_bar
            , Biocaml_bed
            , Biocaml_bpmap
@@ -33,6 +34,7 @@ Library biocaml
            , Biocaml_fasta
            , Biocaml_fastq
            , Biocaml_genome
+           , Biocaml_genomeAnnotation
            , Biocaml_gff
            , Biocaml_histogram
            , Biocaml_invokeCmdline
