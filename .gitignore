@@ -1,4 +1,7 @@
-doc/
-src/_build/
-bin/install_apps.ml.exe
+.ocamlinit
+_build/
 *~
+tmp/
+doclib.docdir
+setup.data
+setup.log
