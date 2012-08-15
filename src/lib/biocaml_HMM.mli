@@ -36,7 +36,7 @@ module type T =
     val a : t -> mat
     (** [a] is the transition matrix, i.e.
         {[
-          a.{x, y} = P(X_n = x | X_(n-1) = y)    (* it is independent of n *).
+          a.{y, x} = P(X_n = y | X_(n-1) = x)    (* it is independent of n *).
         ]}
         where [x] and [y] run through all states (converted to integers). *)
     val b : t -> mat
