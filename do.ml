@@ -30,9 +30,9 @@ let remove file =
   | `No | `Unknown -> 
     printf "No %s to remove\n%!" file
 
-let rec drop_last = function
+let rec keep_until last = function
   | [] | [_] -> []
-  | a :: tl -> a :: drop_last tl
+  | a :: tl -> if a = last then [a] else a :: keep_until last tl
       
     
 let usage ch =
@@ -57,6 +57,7 @@ let check_cwd () =
 let setup_clean () =
   check_cwd ();
   command "oasis setup-clean";
+  remove "myocamlbuild.ml";
   remove "setup.data";
   remove "setup.log";
   remove "_tags";
@@ -89,8 +90,9 @@ let setup () =
   (* Easier to debug macros: *)
   (* command "echo '\"src/lib/biocaml_HMM.ml\": syntax_camlp4o, \ *)
   (*          pkg_pa_do' >> _tags"; *)
-  command "cat src/etc/Makefile.post >> Makefile"
-  let myocamlbuild = drop_last(In_channel.read_lines "myocamlbuild.ml") in
+  command "cat src/etc/Makefile.post >> Makefile";
+  let myocamlbuild = keep_until "(* OASIS_STOP *)"
+                                (In_channel.read_lines "myocamlbuild.ml") in
   let myocamlbuild_post = In_channel.read_lines "myocamlbuild.post.ml" in
   Out_channel.write_lines "myocamlbuild.ml" (myocamlbuild @ myocamlbuild_post)
 
