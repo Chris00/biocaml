@@ -81,6 +81,11 @@ let setup () =
     camlzip_findlib_name;
   command "oasis setup";
   command "echo 'true: annot' >> _tags";
+  command "echo '\"src/lib/biocaml_HMM.ml\": syntax_camlp4o, \
+           pkg_camlp4.macro' >> _tags";
+  (* Easier to debug macros: *)
+  (* command "echo '\"src/lib/biocaml_HMM.ml\": syntax_camlp4o, \ *)
+  (*          pkg_pa_do' >> _tags"; *)
   command "cat src/etc/Makefile.post >> Makefile"
 
 let ocaml_toplevel () =

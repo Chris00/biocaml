@@ -46,6 +46,7 @@ Library biocaml
            , Biocaml_genomeMap
            , Biocaml_gff
            , Biocaml_histogram
+           , Biocaml_HMM
            , Biocaml_intervalTree
            , Biocaml_invokeCmdline
            , Biocaml_math
