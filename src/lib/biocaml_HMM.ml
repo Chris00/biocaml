@@ -102,6 +102,7 @@ DEFINE FORWARD(n_obs, get, obs) =
   for n = 2 to n_obs do
     let n_1 = n - 1 in
     let obs_n = get obs n in
+printf "{%i} " obs_n;
     for x = 1 to Array2.dim1 hmm.a do
       let sum = ref 0. in
       for y = 1 to Array2.dim2 hmm.a do
@@ -466,5 +467,9 @@ module Char_obs(C: STRING) =
     type t = string
     let n_obs = n_obs
     let length = String.length
-    let get v i = to_int.(Char.code v.[i])
+    let get v i =
+      let j = to_int.(Char.code v.[i-1]) in
+      if j = 0 then invalid_arg(sprintf "Biocaml_HMM.Char_obs: char %C \
+                                         is not in the allowed range" v.[i-1])
+      else j
   end

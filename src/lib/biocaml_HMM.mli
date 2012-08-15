@@ -170,11 +170,11 @@ module type OBS_SEQ =
         sequence [seq]. *)
 
     val get : t -> int -> int
-    (** [get seq i] returns the [i]th observation in the sequence [seq].
-        This function must take care of converting the observation to
-        an integer in the range [1,..., n_obs] (otherwise the HMM
-        functions will raise exceptions, for example [Invalid_argument]).
-     *)
+    (** [get seq i] returns the [i]th ([i=1,..., length seq])
+        observation in the sequence [seq].  This function must take
+        care of converting the observation to an integer in the range
+        [1,..., n_obs] (otherwise the HMM functions will raise
+        exceptions, for example [Invalid_argument]).  *)
   end
 
 module Make(S: STATE_SEQ)(O: OBS_SEQ) : sig
