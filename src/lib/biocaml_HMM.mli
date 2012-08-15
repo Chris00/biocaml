@@ -1,14 +1,15 @@
 
 (** Hidden Markov models.
 
-    A Hidden Markov Model is given by two sequences of random
-    variables, the states (X_n) and the observables (Y_n), n = 1,
-    2,...
+  A Hidden Markov Model is given by two sequences of random variables,
+  the states (X_n) and the observables (Y_n), n = 1, 2,...
 
-    Reference:
-    {{:http://courses.cs.tamu.edu/rgutier/cpsc689_s07/welch2003baumWelch.pdf}
+  References:
+  - {{:http://courses.cs.tamu.edu/rgutier/cpsc689_s07/welch2003baumWelch.pdf}
     Hidden Markov Models and the Baum–Welch Algorithm}, IEEE Information
     Theory Society Newsletter, Dec. 2003.
+  - {{:http://courses.media.mit.edu/2010fall/mas622j/ProblemSets/ps4/tutorial.pdf}
+    Some Mathematics for HMM}, Dawei Shen, 2008.
  *)
 
 open Bigarray
@@ -20,11 +21,11 @@ type mat = (float, float64_elt, fortran_layout) Array2.t
 type int_vec = (int, int_elt, fortran_layout) Array1.t
 
 type viterbi_work
-(** A workspace for {!viterbi}.  Can be used with HMMs instanced
+(** A workspace for {!T.viterbi}.  Can be used with HMMs instanced
     with various data if desired. *)
 
 type baum_welch_work
-(** A workspace for {!baum_welch}.  Can be used with HMMs instanced
+(** A workspace for {!T.baum_welch}.  Can be used with HMMs instanced
     with various data if desired. *)
 
 module type T =
@@ -43,8 +44,8 @@ module type T =
         {[
           b.{x, k} = P(Y_n = o_k | X_n = x)      (* it is independent of n *)
         ]}
-        where [x] runs though all states and [k] through observations
-        (both converted to integers). *)
+        where [x] runs though all states and [k] through all possible
+        observations (both converted to integers). *)
     val init : t -> vec
     (** [init] the initial probabilities π_x(1): [init.{x}] = P(X₁ = [x]). *)
 
@@ -69,9 +70,9 @@ module type T =
         @param work a vector with length greater or equal to twice the
         number of states. *)
 
-    val viterbi_work : n_states: int -> n_obs: int -> viterbi_work
-    (** Allocates enough memory for {!viterbi} to be run with a HMM of
-        [n_states] states and sequences of at most [n_obs]
+    val viterbi_work : n_states: int -> length_obs: int -> viterbi_work
+    (** Allocates enough memory for {!T.viterbi} to be run with a HMM of
+        [n_states] states and sequences of at most [length_obs]
         observations. *)
 
     val viterbi : ?work:viterbi_work -> ?states: state_seq ->
@@ -95,9 +96,9 @@ module type T =
         @param viterbi_work the workspace needed for [viterbi] to
         work.  Can be allocated with {!viterbi_work}.  *)
 
-    val baum_welch_work : n_states: int -> n_obs: int -> baum_welch_work
+    val baum_welch_work : n_states: int -> length_obs: int -> baum_welch_work
     (** Allocates enough memory for {!baum_welch} to be run with a HMM
-        of [n_states] states and sequences of at most [n_obs]
+        of [n_states] states and sequences of at most [length_obs]
         observations. *)
 
     val baum_welch : ?work:baum_welch_work -> ?max_iter: int ->
@@ -139,9 +140,20 @@ val make : n_states: int -> n_obs: int -> t
 (** Create an untrained HMM with [n_states] (numbered [1, 2,...,
     n_states]) that can handle [n_obs] (numbered [1,..., n_obs]).  *)
 
+val of_mat : ?check: bool -> a: mat -> b: mat -> vec -> t
+(** [of_mat a b init] returns a HMM with transition probabilities [a],
+    emission probabilities [b] and initial probabilities [init].  See
+    {!T.a}, {!T.b} and {!T.init} for the content of these matrices.
+    @raise Invalid_argument if the dimensions of [a], [b] and [init]
+    are not coherent.
+
+    @param check verifies that the matrices satisfy the probability
+    constraints.  Default: [true]. *)
+
 
 (** {2 HMM with arbitrary states and observations} *)
 
+(** Specification of sequence of states. *)
 module type STATE_SEQ =
   sig
     type t  (** A sequence of states *)
@@ -158,6 +170,7 @@ module type STATE_SEQ =
         the state numbered [state].  States are numbered [1,...,N]. *)
   end
 
+(** Specification of sequence of observations. *)
 module type OBS_SEQ =
   sig
     type t  (** A sequence of observations *)
@@ -177,10 +190,17 @@ module type OBS_SEQ =
         exceptions, for example [Invalid_argument]).  *)
   end
 
+(** Create a HMM module for the sequences of states specified by [S]
+    and the sequences of observations specified by [O]. *)
 module Make(S: STATE_SEQ)(O: OBS_SEQ) : sig
   include T with type state_seq = S.t and type obs_seq = O.t
 
   val make : n_states: int -> t
+
+  val of_mat : ?check: bool -> a: mat -> b: mat -> vec -> t
+  (** Same as {!Biocaml_HMM.of_mat} with the additional check that [b]
+      has the right size fo the number of possible observations
+      {!OBS_SEQ.n_obs}. *)
 end
 
 
