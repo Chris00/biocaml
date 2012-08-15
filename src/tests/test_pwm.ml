@@ -1,6 +1,6 @@
-open OUnit
-open Batteries
 open Biocaml_pwm
+open Core.Std
+open OUnit
 
 let random_dna_char () = match Random.int 8 with
     0 -> 'a'
@@ -27,7 +27,7 @@ let balmer_freqs = [|
 
 let balmer_counts = 
   Array.map 
-    (Array.map (fun f -> int_of_float (float 309 *. f)))
+    (Array.map ~f:(fun f -> int_of_float (float 309 *. f)))
     balmer_freqs
 
 let dr5_matrix seq = 
@@ -45,11 +45,10 @@ let test_c_and_caml_versions_agree () =
   let c_res = fast_scan mat seq (-10.)
   and ocaml_res = scan mat seq (-10.) in
   assert_bool "Hits number" List.(length c_res = length ocaml_res) ;
-  assert_bool "Same positions" List.(map fst c_res = map fst ocaml_res) ;
+  assert_bool "Same positions" List.(map ~f:fst c_res = map ~f:fst ocaml_res) ;
   let eps =
-    List.(fold_left2 
-	    (fun accu (_,x1) (_,x2) -> Pervasives.max accu (abs_float (x1 -. x2))) 
-	    0. c_res ocaml_res)
+    List.fold2_exn c_res ocaml_res ~init:0.
+                   ~f:(fun accu (_,x1) (_,x2) -> max accu (abs_float (x1 -. x2)))
   in assert_bool "Score no more than eps=1e-4" (eps < 1e-4)
 
 let test_reverse_complement () = 
@@ -57,8 +56,9 @@ let test_reverse_complement () =
   let m = make balmer_counts bg in
   let m' = reverse_complement m in
   let m'' = reverse_complement m' in
-  let a, a', a'' =
-    Tuple3.mapn (fun x -> (x : t :> float array array)) (m, m', m'') in
+  let a = (m :> float array array)
+  and a' = (m' :> float array array)
+  and a'' = (m'' :> float array array) in
   assert_bool 
     "Reverse complement should be idempotent" 
     (a = a'') ;
