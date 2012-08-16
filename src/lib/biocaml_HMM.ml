@@ -99,17 +99,30 @@ let of_mat ?(check=true) ~(a:mat) ~(b:mat) (init:vec) =
     invalid_arg "Biocaml_HMM.of_mat: dim init <> dim1 a.";
   if check then (
     for x = 1 to n_states do
-      let sum = sum_col a x in
-      if abs_float(sum -. 1.) > err then
-        invalid_argf "Biocaml_HMM.of_mat: sum a.{_,%i} = %g <> 1." x sum;
+      let sum = ref 0. in
+      for y = 1 to n_states do
+        if a.{y, x} < 0. then
+          invalid_argf "Biocaml_HMM.of_mat: a.{%i,%i} = %g < 0." y x a.{y, x};
+        sum := !sum +. a.{y, x}
+      done;
+      if abs_float(!sum -. 1.) > err then
+        invalid_argf "Biocaml_HMM.of_mat: sum a.{_,%i} = %g <> 1." x !sum;
 
       let sum = ref 0. in
-      for k = 1 to Array2.dim2 b do sum := !sum +. b.{x,k} done;
+      for k = 1 to Array2.dim2 b do
+        if b.{x,k} < 0. then
+          invalid_argf "Biocaml_HMM.of_mat: b.{%i,%i} = %g < 0." x k b.{x,k};
+        sum := !sum +. b.{x,k}
+      done;
       if abs_float(!sum -. 1.) > err then
         invalid_argf "Biocaml_HMM.of_mat: sum b.{%i,_} = %g <> 1." x !sum;
     done;
     let sum = ref 0. in
-    for x = 1 to n_states do sum := !sum +. init.{x} done;
+    for x = 1 to n_states do
+      if init.{x} < 0. then
+        invalid_argf "Biocaml_HMM.of_mat: init.{%i} = %g < 0." x init.{x};
+      sum := !sum +. init.{x}
+    done;
     if abs_float(!sum -. 1.) > err then
       invalid_argf "Biocaml_HMM.of_mat: sum(init) = %f <> 1."  !sum;
   );
