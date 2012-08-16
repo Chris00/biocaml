@@ -228,9 +228,16 @@ let backward ?beta hmm (obs:int_vec) =
 (* Viterbi
  ***********************************************************************)
 
-let viterbi_work ~n_states ~length_obs =
+let viterbi_work_unsafe ~n_states ~length_obs =
   { delta = vec_create (2 * n_states);
-    phi = Array2.create int fortran_layout n_states length_obs }
+    phi = Array2.create int fortran_layout n_states (length_obs - 1) }
+
+let viterbi_work ~n_states ~length_obs =
+  if n_states <= 0 then
+    invalid_arg "Biocaml_HMM.viterbi_work: n_states <= 0";
+  if length_obs <= 0 then
+    invalid_arg "Biocaml_HMM.viterbi_work: length_obs <= 0";
+  viterbi_work_unsafe ~n_states ~length_obs
 ;;
 
 (* δ_n(x) := max_{x₁,...,x_(n-1)} P(X₁ = x₁,...,X_(n-1) = x_(n-1),
@@ -245,16 +252,16 @@ DEFINE VITERBI(length_obs, get, obs, create_state, length_state, set_state) =
                      (length_state w) length_obs;
       w in
   let { delta; phi } = match work with
-    | None -> viterbi_work n_states length_obs
+    | None -> viterbi_work_unsafe n_states length_obs
     | Some w ->
       if Array2.dim1 w.phi < n_states then
         invalid_argf "Biocaml_HMM.viterbi: n_state(work) = %i, \
                       need >= %i" (Array2.dim1 w.phi) n_states;
-      if Array2.dim2 w.phi < length_obs then
+      if Array2.dim2 w.phi + 1 < length_obs then
         invalid_argf "Biocaml_HMM.viterbi: length_obs(work) = %i, need >= %i"
-                     (Array2.dim2 w.phi) length_obs;
+                     (Array2.dim2 w.phi + 1) length_obs;
       w in
-  (* δ₁(x) = P(Y₁ = o₁, X₁ = x) = π_x(1) b.{x, o₁} *)
+  (* δ₁(x) = P(Y₁ = o₁, X₁ = x) = π_x(1) b.{x, o₁};  φ₁ not def. *)
   let obs_1 = get obs 1 in
   for x = 1 to n_states do
     delta.{x} <- hmm.init.{x} *. hmm.b.{x, obs_1}
@@ -265,7 +272,7 @@ DEFINE VITERBI(length_obs, get, obs, create_state, length_state, set_state) =
     let obs_n = get obs n in
     for x = 1 to n_states do
       (* δ_n(x) = max_{y ∈ E}  δ_{n-1}(y) a.{x, y} b.{x, o_{n}}
-         φ.{x, n} = argmax_{y ∈ E} ... *)
+         phi.{x, n-1} ← φ_n(x) = argmax_{y ∈ E} ... *)
       let m = ref neg_infinity
       and arg_m = ref 0 in
       for y = 1 to n_states do
@@ -273,7 +280,7 @@ DEFINE VITERBI(length_obs, get, obs, create_state, length_state, set_state) =
         if m' > !m then (m := m';  arg_m := y)
       done;
       delta.{x + !next} <- !m *. hmm.b.{x, obs_n};
-      phi.{x, n} <- !arg_m;
+      phi.{x, n-1} <- !arg_m;
     done;
     let ofs = !curr in
     curr := !next;
@@ -289,7 +296,7 @@ DEFINE VITERBI(length_obs, get, obs, create_state, length_state, set_state) =
   set_state (seq_states: state_seq) length_obs !state_max;
   let proba = !max *. 1. in              (* force unboxing *)
   for n = length_obs - 1 downto 1 do
-    state_max := phi.{!state_max, n+1}; (* s(n) ← φ(s(n+1), n+1) *)
+    state_max := phi.{!state_max, n}; (* s(n) ← φ_{n+1}(s(n+1)) *)
     set_state (seq_states: state_seq) n !state_max;
   done;
   seq_states, proba
