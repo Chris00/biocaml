@@ -30,7 +30,7 @@ let sum_col (m: mat) col =
   for x = 1 to Array2.dim1 m do sum := !sum +. m.{x, col} done;
   !sum *. 1. (* force unboxing *)
 
-type viterbi_work = { delta: mat;
+type viterbi_work = { delta: vec;
                       phi: (int, int_elt, fortran_layout) Array2.t }
 
 type baum_welch_work = { alpha: mat;  (* forward quantities *)
@@ -229,10 +229,12 @@ let backward ?beta hmm (obs:int_vec) =
  ***********************************************************************)
 
 let viterbi_work ~n_states ~length_obs =
-  { delta = mat_create n_states length_obs;
+  { delta = vec_create (2 * n_states);
     phi = Array2.create int fortran_layout n_states length_obs }
 ;;
 
+(* δ_n(x) := max_{x₁,...,x_(n-1)} P(X₁ = x₁,...,X_(n-1) = x_(n-1),
+                                    X_n = x, Y₁ = o₁,..., Y_n = o_n) *)
 DEFINE VITERBI(length_obs, get, obs, create_state, length_state, set_state) =
   let n_states = Array2.dim1 hmm.a in
   let seq_states = match states with
@@ -245,40 +247,43 @@ DEFINE VITERBI(length_obs, get, obs, create_state, length_state, set_state) =
   let { delta; phi } = match work with
     | None -> viterbi_work n_states length_obs
     | Some w ->
-      if Array2.dim1 w.delta < n_states then
+      if Array2.dim1 w.phi < n_states then
         invalid_argf "Biocaml_HMM.viterbi: n_state(work) = %i, \
-                      need >= %i" (Array2.dim1 w.delta) n_states;
-      if Array2.dim2 w.delta < length_obs then
+                      need >= %i" (Array2.dim1 w.phi) n_states;
+      if Array2.dim2 w.phi < length_obs then
         invalid_argf "Biocaml_HMM.viterbi: length_obs(work) = %i, need >= %i"
-                     (Array2.dim2 w.delta) length_obs;
+                     (Array2.dim2 w.phi) length_obs;
       w in
-  (* δ.{x, 1} = P(Y₁ = o₁, X₁ = x) = π_x(1) b.{x, o₁} *)
+  (* δ₁(x) = P(Y₁ = o₁, X₁ = x) = π_x(1) b.{x, o₁} *)
   let obs_1 = get obs 1 in
   for x = 1 to n_states do
-    delta.{x,1} <- hmm.init.{x} *. hmm.b.{x, obs_1}
+    delta.{x} <- hmm.init.{x} *. hmm.b.{x, obs_1}
   done;
-  (* FIXME: only 2 consecutive cols of δ are needed *)
+  (* Only 2 consecutive cols of δ are needed, use offset. *)
+  let curr = ref 0 (* i.e. already computed *) and next = ref n_states in
   for n = 2 to length_obs do
-    let n_1 = n - 1 in
     let obs_n = get obs n in
     for x = 1 to n_states do
-      (* δ.{x, n} = max_{y ∈ E}  δ.{y, n-1} a.{x, y} b.{x, o_{n}}
+      (* δ_n(x) = max_{y ∈ E}  δ_{n-1}(y) a.{x, y} b.{x, o_{n}}
          φ.{x, n} = argmax_{y ∈ E} ... *)
       let m = ref neg_infinity
       and arg_m = ref 0 in
       for y = 1 to n_states do
-        let m' = delta.{y, n_1} *. hmm.a.{x,y} in
+        let m' = delta.{y + !curr} *. hmm.a.{x,y} in
         if m' > !m then (m := m';  arg_m := y)
       done;
-      delta.{x, n} <- !m *. hmm.b.{x, obs_n};
-      phi.{x, n} <- !arg_m
-    done
+      delta.{x + !next} <- !m *. hmm.b.{x, obs_n};
+      phi.{x, n} <- !arg_m;
+    done;
+    let ofs = !curr in
+    curr := !next;
+    next := ofs;
   done;
   (* Determine the most probable sequence by backtracking. *)
-  let state_max = ref 1                 (* argmax_{y} δ.{y, N} *)
-  and max = ref delta.{1, length_obs} in
-  for x = 2 to n_states do
-    let d = delta.{x, length_obs} in
+  let state_max = ref 0          (* argmax_{y} δ.{y, N} *)
+  and max = ref neg_infinity in
+  for x = 1 to n_states do
+    let d = delta.{x + !curr} in
     if d > !max then (max := d; state_max := x)
   done;
   set_state (seq_states: state_seq) length_obs !state_max;

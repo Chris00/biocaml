@@ -70,6 +70,19 @@ let test_viterbi () =
 let test_baum_welch () =
   ()
 
+(* let seqs = [ [| 0; 1; 1; 1; 1; 0; 1; 1; 1; 1 |]; *)
+(*              [| 0; 1; 1; 1; 0; 1; 1; 1; 1; 1 |]; *)
+(*              [| 0; 1; 1; 1; 1; 1; 1; 1; 1; 1 |]; *)
+(*              [| 0; 1; 1; 1; 1; 1             |]; *)
+(*              [| 0; 1; 1; 1; 1; 1; 1          |]; *)
+(*              [| 0; 1; 1; 1; 1; 1; 1; 1; 1; 1 |]; *)
+(*              [| 0; 1; 1; 1; 1; 1; 1; 1; 1; 1 |]; *)
+(*            ] *)
+
+(* let hmm = HMM.make ~n_states:3 ~n_obs:2 *)
+
+(* let () = HMM.baum_welch *)
+
 let tests = "HMM" >::: [
             "Proba(obs)" >:: test_Pobs;
             "Forward/Backward" >:: test_forward_backward;
