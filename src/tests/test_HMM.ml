@@ -52,14 +52,20 @@ let test_forward_backward () =
                           [| 0.0455; 0.15028; 0.24365; 0.41; 1. |] |])
 
 let test_viterbi () =
-  let module Obs = struct let chars = "HT" end in
-  let module HMM = Biocaml_HMM.Make (Biocaml_HMM.Int_state)
+  (* http://homepages.ulb.ac.be/~dgonze/TEACHING/viterbi.pdf *)
+  let module State = struct let chars = "HL" end in
+  let module Obs = struct let chars = "ACGT" end in
+  let module HMM = Biocaml_HMM.Make (Biocaml_HMM.Char_state(State))
                                     (Biocaml_HMM.Char_obs(Obs)) in
-  let hmm = HMM.make ~n_states:3 in
-  let obs1 = "HHHHTHTTTT" and obs2 = "HTTHTHHTTH" in
-  let st1, p1 = HMM.viterbi hmm obs1 in
-  printf ""
-
+  let init = vec [| 0.5; 0.5 |]
+  and a = mat [| [| 0.5; 0.4 |];
+                 [| 0.5; 0.6 |] |]
+  and b = mat [| [| 0.2; 0.3; 0.3; 0.2 |];
+                 [| 0.3; 0.2; 0.2; 0.3 |] |] in
+  let hmm = HMM.of_mat a b init in
+  let st1, p1 = HMM.viterbi hmm "GGCACTGAA" in
+  assert_equal st1 "HHHLLLLLL";
+  assert_almostequal "Proba" p1 (2.**(-24.49)) ~epsilon:1e-10
 
 let test_baum_welch () =
   ()

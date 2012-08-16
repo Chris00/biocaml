@@ -252,34 +252,37 @@ DEFINE VITERBI(length_obs, get, obs, create_state, length_state, set_state) =
         invalid_argf "Biocaml_HMM.viterbi: length_obs(work) = %i, need >= %i"
                      (Array2.dim2 w.delta) length_obs;
       w in
-  (* δ.{x, 1} = P(Y₁ = o₁, X₁ = x) = b.{x, o₁} π_x(1) *)
+  (* δ.{x, 1} = P(Y₁ = o₁, X₁ = x) = π_x(1) b.{x, o₁} *)
+  let obs_1 = get obs 1 in
   for x = 1 to n_states do
-    delta.{x,1} <- hmm.b.{x,1} *. hmm.init.{x}
+    delta.{x,1} <- hmm.init.{x} *. hmm.b.{x, obs_1}
   done;
   (* FIXME: only 2 consecutive cols of δ are needed *)
-  for n = 1 to length_obs - 1 do
-    let o = get obs (n+1) in
+  for n = 2 to length_obs do
+    let n_1 = n - 1 in
+    let obs_n = get obs n in
     for x = 1 to n_states do
-      (* δ.{x, n+1} = max_{y ∈ E}  δ.{y, n} a.{x, y} b.{x, o_{n+1}} *)
+      (* δ.{x, n} = max_{y ∈ E}  δ.{y, n-1} a.{x, y} b.{x, o_{n}}
+         φ.{x, n} = argmax_{y ∈ E} ... *)
       let m = ref neg_infinity
       and arg_m = ref 0 in
       for y = 1 to n_states do
-        let m' = delta.{y, n} *. hmm.a.{x,y} in
+        let m' = delta.{y, n_1} *. hmm.a.{x,y} in
         if m' > !m then (m := m';  arg_m := y)
       done;
-      delta.{x, n+1} <- !m *. hmm.b.{x, o};
-      phi.{x, n+1} <- !arg_m
+      delta.{x, n} <- !m *. hmm.b.{x, obs_n};
+      phi.{x, n} <- !arg_m
     done
   done;
   (* Determine the most probable sequence by backtracking. *)
-  let state_max = ref 1
+  let state_max = ref 1                 (* argmax_{y} δ.{y, N} *)
   and max = ref delta.{1, length_obs} in
   for x = 2 to n_states do
     let d = delta.{x, length_obs} in
     if d > !max then (max := d; state_max := x)
   done;
   set_state (seq_states: state_seq) length_obs !state_max;
-  let proba = !max *. 1. in
+  let proba = !max *. 1. in              (* force unboxing *)
   for n = length_obs - 1 downto 1 do
     state_max := phi.{!state_max, n+1}; (* s(n) ← φ(s(n+1), n+1) *)
     set_state (seq_states: state_seq) n !state_max;
@@ -487,7 +490,8 @@ module Char_state(C: STRING) =
     let to_char = String.copy C.chars
     let create = String.create
     let length = String.length
-    let set v i ~state = v.[i] <- to_char.[state]
+    let set v i ~state = v.[i-1] <- to_char.[state-1]
+    (* i = 1,..., length v;  state = 1,... *)
   end
 
 module Char_obs(C: STRING) =

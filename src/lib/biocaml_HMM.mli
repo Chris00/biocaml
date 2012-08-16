@@ -111,9 +111,9 @@ module type T =
         Baum-Welch algorithm.  Default: [20].  *)
 
     val forward : ?alpha:mat -> t -> obs_seq -> mat
-    (** [forward hmm obs] efficiently computes the matrix [α.{x,n}],
-        where [x] varies among the states (1,..., dim1 a) and [n =
-        1,..., length_obs obs], defined by
+    (** [forward hmm obs] computes the matrix [α.{x,n}], where [x]
+        varies among the states (1,..., dim1 a) and [n = 1,..., N],
+        defined by
         {[
           α.{x, n} = P(Y₁ = o₁,..., Y_n = o_n, X_n = x)
         ]}
@@ -122,9 +122,9 @@ module type T =
         P(Y₁ = o₁,..., Y_n = o_n) = [Vec.sum(Mat.col alpha n)]. *)
 
     val backward : ?beta:mat -> t -> obs_seq -> mat
-    (** [backward a b obs] efficiently computes the matrix [β.{x,n}]
-        where [x] varies among the states (1,..., dim1 a) and [n =
-        1,..., N] defined by
+    (** [backward a b obs] computes the matrix [β.{x,n}] where [x]
+        varies among the states (1,..., dim1 a) and [n = 1,..., N]
+        defined by
         {[
           β.{x,n} = P(Y_{n+1} = o_{n+1},..., Y_N = o_N | X_n = x)
         ]}
