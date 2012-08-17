@@ -57,6 +57,7 @@ module type T =
     val baum_welch : ?work:baum_welch_work -> ?max_iter: int ->
                      t -> obs_seq -> unit
     val forward : ?alpha:mat -> t -> obs_seq -> mat
+    val forward_scale : ?alpha:mat -> ?scale:vec -> t -> obs_seq -> mat * vec
     val backward : ?beta:mat -> t -> obs_seq -> mat
   end
 
@@ -164,6 +165,53 @@ let forward ?alpha hmm (obs: int_vec) =
   let length_obs = Array1.dim obs in
   FORWARD(length_obs, Array1.get, obs)
 
+
+DEFINE FORWARD_SCALE(length_obs, get, obs) =
+  let alpha = match alpha with
+    | None -> mat_create (Array2.dim2 hmm.a) length_obs
+    | Some m ->
+       if Array2.dim1 m < Array2.dim2 hmm.a then
+         invalid_arg "Biocaml_HMM.forward_scale: dim1(alpha) too small";
+       if Array2.dim2 m < length_obs then
+         invalid_arg "Biocaml_HMM.forward_scale: dim2(alpha) too small";
+       m in
+  let scale = match scale with
+    | None -> vec_create length_obs
+    | Some v ->
+       if Array1.dim v < length_obs then
+         invalid_arg "Biocaml_HMM.forward_scale: dim(scale) too small";
+       v in
+  (* α.{x,1} = b.{x, o₁} π_x(1) rescaled so ∑ = 1 *)
+  let obs_1 = get obs 1 in
+  for x = 1 to Array2.dim2 hmm.a do
+    alpha.{x,1} <- hmm.init.{x} *. hmm.b.{x, obs_1};
+    scale.{1} <- scale.{1} +. alpha.{x,1};
+  done;
+  for x = 1 to Array2.dim2 hmm.a do
+    alpha.{x,1} <- alpha.{x,1} /. scale.{1}
+  done;
+  (* α.{x, n} = ∑ α.{y, n-1} a.{x, y} b.{x, obs.{n}} on all y ∈ E
+     where a.{x, y} = Prob(X_n = x | X_(n-1) = y) *)
+  for n = 2 to length_obs do
+    let n_1 = n - 1 in
+    let obs_n = get obs n in
+    for x = 1 to Array2.dim1 hmm.a do
+      let sum = ref 0. in
+      for y = 1 to Array2.dim2 hmm.a do
+        sum := !sum +. alpha.{y, n_1} *. hmm.a.{x,y}
+      done;
+      alpha.{x, n} <- !sum *. hmm.b.{x, obs_n};
+      scale.{n} <- scale.{n} +. alpha.{x, n};
+    done;
+    for x = 1 to Array2.dim1 alpha do
+      alpha.{x, n} <- alpha.{x, n} /. scale.{n}
+    done
+  done;
+  alpha, scale
+
+let forward_scale ?alpha ?scale hmm (obs: int_vec) =
+  let length_obs = Array1.dim obs in
+  FORWARD_SCALE(length_obs, Array1.get, obs)
 
 (* Proba of obs
  ***********************************************************************)
@@ -327,14 +375,17 @@ let viterbi ?work ?states hmm (obs: int_vec) =
 (* Baum Welch
  ***********************************************************************)
 
+let baum_welch_work_unsafe ~n_states ~length_obs =
+  { alpha = mat_create n_states length_obs;
+    beta = mat_create n_states length_obs;
+  }
+
 let baum_welch_work ~n_states ~length_obs =
   if n_states <= 0 then
     invalid_arg "Biocaml_HMM.baum_welch_work: number of states <= 0";
   if length_obs <= 0 then
     invalid_arg "Biocaml_HMM.baum_welch_work: number of observations <= 0";
-  { alpha = mat_create n_states length_obs;
-    beta = mat_create n_states length_obs;
-  }
+  baum_welch_work_unsafe ~n_states ~length_obs
 
 (* Implementation of Baum-Welch algorithm based on:
 
@@ -346,7 +397,7 @@ let baum_welch_work ~n_states ~length_obs =
 DEFINE BAUM_WELCH(length_obs, get, obs) =
   let n_states = Array2.dim1 hmm.a in
   let { alpha; beta } = match work with
-    | None -> baum_welch_work n_states length_obs
+    | None -> baum_welch_work_unsafe n_states length_obs
     | Some w ->
        (* Worspace can only be created by special fun. Dims correlated. *)
        if Array2.dim1 w.alpha < n_states then
@@ -475,6 +526,10 @@ module Make(S: STATE_SEQ)(O: OBS_SEQ) = struct
   let forward ?alpha hmm obs =
     let length_obs = O.length obs in
     FORWARD(length_obs, O.get, obs)
+
+  let forward_scale ?alpha ?scale hmm obs =
+    let length_obs = O.length obs in
+    FORWARD_SCALE(length_obs, O.get, obs)
 
   let proba_obs ?work hmm obs =
     let length_obs = O.length obs in

@@ -121,6 +121,21 @@ module type T =
         particular, note that (using [Lacaml]):
         P(Y₁ = o₁,..., Y_n = o_n) = [Vec.sum(Mat.col alpha n)]. *)
 
+    val forward_scale : ?alpha:mat -> ?scale:vec -> t -> obs_seq -> mat * vec
+    (** [forward hmm obs] computes the [(α.{x,n}, scale.{n}], where
+        [x] varies among the states (1,..., dim1 a) and [n = 1,...,N],
+        defined by
+        {[
+          α.{x, n} = P(X_n = x | Y₁ = o₁,..., Y_n = o_n)
+        ]}
+        and
+        {[
+          scale.{n} = P(Y_n = o_n | Y₁ = o₁,..., Y_(n-1) = o_(n-1) )
+        ]}
+        where [obs] = o₁...o_N and N = [length_obs obs].  In
+        particular, note that (using [Lacaml]):
+        P(Y₁ = o₁,..., Y_n = o_n) = ∏_{k=1,...,n} s.{k}     *)
+
     val backward : ?beta:mat -> t -> obs_seq -> mat
     (** [backward a b obs] computes the matrix [β.{x,n}] where [x]
         varies among the states (1,..., dim1 a) and [n = 1,..., N]
