@@ -1,0 +1,7 @@
+# OASIS_START
+# OASIS_STOP
+
+true: annot
+"src/lib/biocaml_HMM.ml": syntax_camlp4o, pkg_camlp4.macro
+# Easier to debug macros:
+#"src/lib/biocaml_HMM.ml": syntax_camlp4o, pkg_pa_do
