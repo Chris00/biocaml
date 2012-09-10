@@ -2,6 +2,9 @@
 # OASIS_STOP
 
 true: annot
+
+<src/lib/biocaml_{bam,bed,fasta,fastq,gff,tags,sam,phred_score,pos,wig,zip}.ml{,i}>: syntax_camlp4o, pkg_sexplib.syntax
+
 "src/lib/biocaml_HMM.ml": syntax_camlp4o, pkg_camlp4.macro
 # Easier to debug macros:
 #"src/lib/biocaml_HMM.ml": syntax_camlp4o, pkg_pa_do

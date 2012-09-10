@@ -3,8 +3,8 @@ open OUnit
 let all_tests = [
   Test_fasta.tests;
   Test_HMM.tests;
-  Test_intervalTree.tests;
-  Test_phredScore.tests;
+  Test_interval_tree.tests;
+  Test_phred_score.tests;
   Test_pwm.tests;
   Test_roc.tests;
   Test_bed.tests;
